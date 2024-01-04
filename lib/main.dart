@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:flutter/foundation.dart';
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 void main() {
   runApp(const MyApp());
@@ -30,15 +31,6 @@ class MyApp extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
   final String title;
 
   @override
@@ -51,6 +43,20 @@ class _MyHomePageState extends State<MyHomePage> {
   //Declaring record here, ? means possible null, necessary in Dart
   AudioRecorder? record;
   String? path;
+
+  final socket = io.io(
+      'https://desolate-mesa-93969-086416f0bdb9.herokuapp.com/',
+      <String, dynamic>{
+        'transports': ['websocket']
+      });
+
+  @override
+  void initState() {
+    super.initState();
+    socket.onConnect((_) {
+      log('Connected to the server');
+    });
+  }
 
   //Method to request microphone permission from phone, Future is used for asynchronous computation
   Future<bool> getPermissions() async {
@@ -92,17 +98,13 @@ class _MyHomePageState extends State<MyHomePage> {
         record = AudioRecorder(); //initialization of record
         //This is to start the recording
 
-        // Get the directory to save the audio file
-        //Directory appDocDir = await getApplicationDocumentsDirectory();
+        // Get the directory to save the audio file\
         path = '/storage/emulated/0/Download/MMNC_Audio/recording.aac';
         log("File Path: $path");
 
         await record!.start(
             const RecordConfig(), //! is used to refer to the initialized record
             path: path!);
-
-        //This is the audio chunking for streaming, the chunks are 8-bit ints which can be converted to audio
-        //final stream = record!.startStream(const RecordConfig());
       } else {
         log('permission denied');
       }
@@ -126,6 +128,13 @@ class _MyHomePageState extends State<MyHomePage> {
       final chunks = _chunkAudio(path!);
       log("Finished Chunking");
 
+      for (var i = 0; i < chunks.length; i++) {
+        socket.emit('audio_chunk', i);
+      }
+
+      socket.on('server_message', (data) {
+        log('Received message from server: $data');
+      });
       /*
       for (var i = 0; i < chunks.length; i++) {
         log('Size of chunk $i: ${chunks[i].lengthInBytes} bytes');

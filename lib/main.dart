@@ -56,6 +56,10 @@ class _MyHomePageState extends State<MyHomePage> {
     socket.onConnect((_) {
       log('Connected to the server');
     });
+
+    socket.on('server_message', (data) {
+      log('Received message from server: $data');
+    });
   }
 
   //Method to request microphone permission from phone, Future is used for asynchronous computation
@@ -109,6 +113,12 @@ class _MyHomePageState extends State<MyHomePage> {
         log('permission denied');
       }
 
+      try {
+        socket.emit("audioStarted", "The audio recording has started");
+      } catch (e) {
+        log(e.toString());
+      }
+
       setState(() {
         isRecording = true;
         log(isRecording.toString());
@@ -129,17 +139,8 @@ class _MyHomePageState extends State<MyHomePage> {
       log("Finished Chunking");
 
       for (var i = 0; i < chunks.length; i++) {
-        socket.emit('audio_chunk', i);
+        socket.emit("pushChunks", chunks[i]);
       }
-
-      socket.on('server_message', (data) {
-        log('Received message from server: $data');
-      });
-      /*
-      for (var i = 0; i < chunks.length; i++) {
-        log('Size of chunk $i: ${chunks[i].lengthInBytes} bytes');
-      }
-      */
 
       setState(() {
         isRecording = false;

@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
-import 'package:flutter_sound/flutter_sound.dart';
 import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
@@ -97,11 +96,29 @@ class _MyHomePageState extends State<MyHomePage> {
     return chunkArr;
   }
 
+  var counter = 0;
+  Stream<List<int>> _readFileAsChunks(String path) async* {
+    final file = File(path);
+    const chunkSize = 1024 * 10;
+
+    final logFile = file.openSync(mode: FileMode.read);
+    while (true) {
+      final chunk = logFile.readSync(chunkSize);
+      if (chunk.isEmpty) {
+        await Future.delayed(const Duration(milliseconds: 1500));
+      } else {
+        yield chunk;
+        counter++;
+        log(counter.toString());
+      }
+    }
+  }
+
   Future<void> startRecording() async {
     try {
       if (await getPermissions()) {
         //This is to start the recording
-
+        record = AudioRecorder();
         // Get the directory to save the audio file\
         path = '/storage/emulated/0/Download/MMNC_Audio/recording.aac';
         log("File Path: $path");
@@ -109,6 +126,13 @@ class _MyHomePageState extends State<MyHomePage> {
         await record!.start(
             const RecordConfig(), //! is used to refer to the initialized record
             path: path!);
+
+        final chunkStream = _readFileAsChunks(path!);
+        chunkStream.listen((chunk) {
+          log("sending out chunk $counter");
+          socket.emit('pushChunks', {'data': chunk, 'count': counter});
+          log("finished sending out chunk $counter");
+        });
       } else {
         log('permission denied');
       }
@@ -134,14 +158,15 @@ class _MyHomePageState extends State<MyHomePage> {
       record!.dispose();
 
       //Chunk the data
-      log("Chunking Start");
-      final chunks = _chunkAudio(path!);
-      log("Finished Chunking");
+      //final chunks = _chunkAudio(path!);
       socket.emit("audioEnded", "Recording Stopped");
 
+      /*
+      
       for (var i = 0; i < chunks.length; i++) {
         socket.emit('pushChunks', chunks[i]);
       }
+      */
 
       setState(() {
         isRecording = false;

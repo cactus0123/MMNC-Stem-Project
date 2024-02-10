@@ -8,5 +8,7 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Rceording for transmission</string>
 </dict>
 </plist>

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:mmnc_phase1/receive_page.dart';
 import 'send_page.dart'; // import the SendPage widget
 //import 'receive_page.dart'; // import the ReceivePage widget
 
 class LandingPage extends StatelessWidget {
-  const LandingPage({Key? key}) : super(key: key);
+  const LandingPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +51,7 @@ class LandingPage extends StatelessWidget {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const Placeholder()),
+                  MaterialPageRoute(builder: (context) => const ReceivePage()),
                 );
               },
             ),

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:flutter/material.dart';
+import 'package:csv/csv.dart';
 
 class ReceivePage extends StatefulWidget {
   const ReceivePage({super.key});
@@ -14,6 +15,7 @@ class ReceivePage extends StatefulWidget {
 class _ReceivePageState extends State<ReceivePage> {
   bool isConnected = false;
   List<int> audioChunks = [];
+  List<Map<String, dynamic>> timestamps = [];
 
   final socket = io.io(
       'https://desolate-mesa-93969-086416f0bdb9.herokuapp.com/',
@@ -33,9 +35,16 @@ class _ReceivePageState extends State<ReceivePage> {
     socket.on("audioStream", (data) {
       if (data is Map) {
         audioChunks.addAll(data['data']);
-        log("Received chunk from server: $data['count']");
+        int receivedTime = DateTime.now().millisecondsSinceEpoch;
+        log('Received chunk ${data['count']} - Sent at ${data['sentTime']}, Received at $receivedTime');
+        try {
+          timestamps.add(
+              {'sentTime': data['sentTime'], 'receivedTime': receivedTime});
+        } catch (e) {
+          log(e.toString());
+        }
       } else {
-        log('Data does not contain a "data" key');
+        log('Data is not a Map');
       }
     });
 
@@ -119,6 +128,22 @@ class _ReceivePageState extends State<ReceivePage> {
     }
   }
 
+  Future<void> saveCSV(List<Map<String, dynamic>> data) async {
+    try {
+      String filePath = '/storage/emulated/0/Download/Audio/timestamps.csv';
+      log('File path: $filePath');
+      File csvFile = File(filePath);
+      List<List<dynamic>> csvData = [];
+      for (var i = 0; i < data.length; i++) {
+        csvData.add([data[i]['sentTime'], data[i]['receivedTime']]);
+      }
+      String csv = const ListToCsvConverter().convert(csvData);
+      await csvFile.writeAsString(csv);
+    } catch (e) {
+      log('Error saving CSV: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -131,7 +156,12 @@ class _ReceivePageState extends State<ReceivePage> {
           children: <Widget>[
             ElevatedButton(
                 child: const Text('Play Audio'),
-                onPressed: () => saveReceivedAudio(audioChunks))
+                onPressed: () => saveReceivedAudio(audioChunks)),
+            ElevatedButton(
+              child: const Text('Download CSV'),
+              onPressed: () =>
+                  saveCSV(timestamps), // Save the timestamps to a CSV file
+            )
           ],
         ),
       ),

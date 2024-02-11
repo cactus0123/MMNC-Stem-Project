@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mmnc_phase1/receive_page.dart';
+import 'package:mmnc_test/receive_page.dart';
 import 'send_page.dart'; // import the SendPage widget
 //import 'receive_page.dart'; // import the ReceivePage widget
 

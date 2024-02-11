@@ -44,39 +44,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   //Method to request microphone permission from phone, Future is used for asynchronous computation
   Future<bool> getPermissions() async {
-    var status = await Permission.microphone.request();
-    return status.isGranted;
+    var status1 = await Permission.microphone.request();
+    var status2 = await Permission.manageExternalStorage.request();
+    return (status1.isGranted && status2.isGranted);
   }
-
-/*
-  List<Uint8List> _chunkAudio(String path) {
-    final file = File(path);
-    final bytes = file
-        .readAsBytesSync(); //array of all the bytes in the recording as Uint8list
-    const chunkSize = 1024 * 10;
-
-    final chunkArr = <Uint8List>[];
-
-    //increments through byte arr by chunkSize
-    for (var i = 0; i < bytes.length; i += chunkSize) {
-      /*
-      each chunk is a collection of bytes
-      this collection is defined by the chunkSize
-      inal is used to get the upper bound for the bytes given i pos to get a chunk
-      */
-      final end = i + chunkSize;
-      if (end > bytes.length) {
-        // checks if the audio recording is shorter than 1 chunkSize to avoid outOfBound
-        chunkArr.add(bytes.sublist(i, bytes.length)); //Each sublist is a chunk
-      } else {
-        chunkArr.add(bytes.sublist(i, end));
-      }
-    }
-
-    log('Number of chunks: ${chunkArr.length}');
-    return chunkArr;
-  }
-*/
 
   var counter = 0;
   Stream<List<int>> _readFileAsChunks(String path) async* {
@@ -90,7 +61,9 @@ class _MyHomePageState extends State<MyHomePage> {
         await Future.delayed(const Duration(milliseconds: 1500));
       } else {
         yield chunk;
-        counter++;
+        setState(() {
+          counter++;
+        });
         log(counter.toString());
       }
     }
@@ -110,6 +83,7 @@ class _MyHomePageState extends State<MyHomePage> {
         }
 
         String path = '${appDocDir!.path}/recording.aac';
+        //String path = 'storage/emulated/0/Download/MMNC_Audio/recording.aac';
         log("File Path: $path");
 
         await record!.start(
@@ -120,8 +94,13 @@ class _MyHomePageState extends State<MyHomePage> {
         chunkStream.listen((chunk) {
           log("sending out chunk $counter");
           final DateTime now = DateTime.now();
-          socket.emit('pushChunks', {'data': chunk, 'count': counter});
-          log("chunk $counter: $now");
+          final pushData = {
+            'data': chunk,
+            'count': counter,
+            'time': now.millisecondsSinceEpoch.toString()
+          };
+          log("chunk $counter: ${pushData['time']}");
+          socket.emit('pushChunks', pushData);
         });
       } else {
         log('permission denied');
@@ -160,12 +139,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -194,7 +167,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   startRecording();
                 }
               },
-            )
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 200),
+              child: Text(
+                "Chunks Sent: $counter",
+                style: const TextStyle(fontSize: 24),
+              ),
+            ),
           ],
         ),
       ),
